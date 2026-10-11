@@ -158,7 +158,9 @@ function CustomPastureFence.getPastureContour(placeable)
         return animalsSpec.outdoorContourPolygon
     end
 
+    -- false caches "no usable contour" so it is not recomputed every frame.
     if placeable.cpfContourPolygon == nil then
+        placeable.cpfContourPolygon = false
         local positions = placeable:getFenceContourPositions()
         if #positions >= 9 then
             local polygon = Polygon2D.new()
@@ -167,7 +169,7 @@ function CustomPastureFence.getPastureContour(placeable)
         end
     end
 
-    return placeable.cpfContourPolygon
+    return placeable.cpfContourPolygon or nil
 end
 
 -- The owned pasture with a fence that the local player is standing in, if any.
@@ -284,7 +286,8 @@ end
 ---------------------------------------------------------------------------------------------------
 
 -- Rebuilds the pasture fence from `xmlFilename`, keeping every segment's position.
--- Returns success, plus a result table { gatesRemoved, segmentsFailed } or an error l10n key.
+-- The old fence is only removed once every new segment was built, so a failure leaves it untouched.
+-- Returns success, plus a result table { gatesRemoved } or an error l10n key.
 function CustomPastureFence.applyFence(placeable, xmlFilename, baseDir)
     local spec = placeable.spec_husbandryFence
     local oldFence = spec ~= nil and spec.fence or nil
@@ -333,12 +336,17 @@ function CustomPastureFence.applyFence(placeable, xmlFilename, baseDir)
     end
 
     -- Map every existing segment onto a template of the new fence before touching the old one.
-    local result = { gatesRemoved = 0, segmentsFailed = 0 }
+    local result = { gatesRemoved = 0 }
     local segmentData = {}
+    local failed = false
     for _, segment in ipairs(oldFence:getSegments()) do
         local sx, sy, sz = segment:getStartPos()
         local ex, ey, ez = segment:getEndPos()
-        if sx ~= nil and ex ~= nil then
+        if sx == nil or ex == nil then
+            Logging.error("[CustomPastureFence] Fence segment '%s' has no start or end position", tostring(segment:getId()))
+            failed = true
+            break
+        else
             local gate = segment.metadata.gate
             local isGate = gate ~= nil
             local newId = CustomPastureFence.findTemplateId(newFence, isGate, isGate and gate.length or nil, segment:getId())
@@ -359,28 +367,21 @@ function CustomPastureFence.applyFence(placeable, xmlFilename, baseDir)
         end
     end
 
-    if #segmentData == 0 then
+    if not failed and #segmentData == 0 then
         Logging.error("[CustomPastureFence] Fence '%s' has no usable segment templates", xmlFilename)
-        newFence:delete()
-        g_i3DManager:releaseSharedI3DFile(sharedLoadRequestId)
-        return false, "cpf_error_failed"
+        failed = true
     end
-
-    -- Remove the old fence.
-    spec.previewSegments = nil
-    oldFence:delete()
-    if spec.sharedLoadRequestId ~= nil then
-        g_i3DManager:releaseSharedI3DFile(spec.sharedLoadRequestId)
-    end
-    spec.sharedLoadRequestId = sharedLoadRequestId
-    spec.fence = newFence
 
     -- Build the new segments along the old positions, in the old order (the order defines the contour).
-    for _, data in ipairs(segmentData) do
-        local segment = newFence:createNewSegment(data.id)
-        if segment == nil then
-            result.segmentsFailed = result.segmentsFailed + 1
-        else
+    if not failed then
+        for _, data in ipairs(segmentData) do
+            local segment = newFence:createNewSegment(data.id)
+            if segment == nil then
+                Logging.error("[CustomPastureFence] Could not create segment '%s' of fence '%s'", data.id, xmlFilename)
+                failed = true
+                break
+            end
+
             segment:setStartPos(data.sx, data.sy, data.sz)
             segment:setEndPos(data.ex, data.ey, data.ez)
             if data.isGate then
@@ -390,12 +391,28 @@ function CustomPastureFence.applyFence(placeable, xmlFilename, baseDir)
             segment.husbandryFenceIsDefaultSegment = data.isDefault
 
             if not (segment:updateMeshes(true, false) and segment:finalize(true)) then
-                segment:delete()
-                result.segmentsFailed = result.segmentsFailed + 1
+                Logging.error("[CustomPastureFence] Could not place segment '%s' of fence '%s'", data.id, xmlFilename)
+                failed = true
+                break
             end
         end
     end
+
+    if failed then
+        newFence:delete()
+        g_i3DManager:releaseSharedI3DFile(sharedLoadRequestId)
+        return false, "cpf_error_failed"
+    end
     newFence:finalize()
+
+    -- Swap in the new fence and remove the old one.
+    spec.previewSegments = nil
+    oldFence:delete()
+    if spec.sharedLoadRequestId ~= nil then
+        g_i3DManager:releaseSharedI3DFile(spec.sharedLoadRequestId)
+    end
+    spec.sharedLoadRequestId = sharedLoadRequestId
+    spec.fence = newFence
 
     -- Rebuild the animals' navigation mesh from the new fence contour.
     placeable.cpfContourPolygon = nil
@@ -446,9 +463,6 @@ function CustomPastureFence.changeFence(placeable, storeItem)
     if result.gatesRemoved > 0 then
         message = message .. " " .. string.format(g_i18n:getText("cpf_info_gatesRemoved"), result.gatesRemoved)
     end
-    if result.segmentsFailed > 0 then
-        message = message .. " " .. string.format(g_i18n:getText("cpf_info_segmentsFailed"), result.segmentsFailed)
-    end
     g_currentMission:addIngameNotification(FSBaseMission.INGAME_NOTIFICATION_OK, message)
 end
 
@@ -464,11 +478,14 @@ function CustomPastureFence.showFencePicker(placeableName, currentSaveName, onCh
 
     local options = {}
     local choices = {}
-    local defaultIndex = 1
+    -- currentIndex stays nil when the current fence is not in the list (e.g. its mod was removed),
+    -- so every entry, "Original fence" included, counts as a change.
+    local currentIndex = nil
 
     local originalLabel = g_i18n:getText("cpf_option_original")
     if currentLower == nil then
         originalLabel = originalLabel .. currentSuffix
+        currentIndex = 1
     end
     table.insert(options, originalLabel)
     table.insert(choices, false)
@@ -477,7 +494,7 @@ function CustomPastureFence.showFencePicker(placeableName, currentSaveName, onCh
         local label = CustomPastureFence.getStoreItemLabel(storeItem)
         if currentLower ~= nil and storeItem.xmlFilenameLower == currentLower then
             label = label .. currentSuffix
-            defaultIndex = #options + 1
+            currentIndex = #options + 1
         end
         table.insert(options, label)
         table.insert(choices, storeItem)
@@ -485,12 +502,12 @@ function CustomPastureFence.showFencePicker(placeableName, currentSaveName, onCh
 
     local text = string.format(g_i18n:getText("cpf_dialog_text"), placeableName)
     OptionDialog.show(function(index)
-        if index == nil or index < 1 or choices[index] == nil or index == defaultIndex then
+        if index == nil or index < 1 or choices[index] == nil or index == currentIndex then
             return
         end
         local storeItem = choices[index]
         onChosen(storeItem ~= false and storeItem or nil)
-    end, text, g_i18n:getText("cpf_dialog_title"), options, defaultIndex)
+    end, text, g_i18n:getText("cpf_dialog_title"), options, currentIndex or 1)
 end
 
 function CustomPastureFence.openDialog(placeable)
@@ -655,6 +672,16 @@ end
 -- Animal visuals take a few frames to update after the husbandry is recreated; wake the
 -- placeable up afterwards so the animals reappear on the rebuilt navigation mesh.
 function CustomPastureFence:update(_)
+    -- A pasture whose route is being redrawn gets its cached contour recomputed afterwards.
+    if g_currentMission ~= nil and g_currentMission.placeableSystem ~= nil then
+        for _, placeable in ipairs(g_currentMission.placeableSystem.placeables) do
+            local spec = placeable.spec_husbandryFence
+            if spec ~= nil and spec.userIsCustomizing then
+                placeable.cpfContourPolygon = nil
+            end
+        end
+    end
+
     for placeable, frames in pairs(self.pendingVisualRefresh) do
         if frames <= 0 then
             self.pendingVisualRefresh[placeable] = nil

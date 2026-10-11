@@ -15,7 +15,8 @@ To change an existing pasture, stand inside it on foot and press the activate ke
 
 Notes:
 - Singleplayer only.
-- If the chosen fence has no gate, existing gates are left as openings.
+- If the chosen fence has no gate, gates of an existing pasture are left as openings. A new barn built with such a fence gets a closed fence instead of its gates.
+- Removing this mod after changing a fence can break that pasture's fence. Set it back to "Original fence" first.
 - Fences with long panels may leave small gaps at corners.]]></en>
     </description>
 
@@ -57,10 +58,6 @@ Notes:
         <text name="cpf_info_gatesRemoved">
             <en>%d gate(s) were left as openings because this fence has no gate.</en>
             <de>%d Tor(e) wurden als Öffnung belassen, da dieser Zaun kein Tor hat.</de>
-        </text>
-        <text name="cpf_info_segmentsFailed">
-            <en>%d fence section(s) could not be placed.</en>
-            <de>%d Zaunabschnitt(e) konnten nicht platziert werden.</de>
         </text>
         <text name="cpf_error_failed">
             <en>The fence could not be changed. See the log for details.</en>

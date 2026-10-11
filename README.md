@@ -8,7 +8,7 @@ Farming Simulator 25 mod that lets you choose the fence type of animal pastures 
 - **Existing pastures:** stand inside one of your pastures on foot and press the activate key on **"Change pasture fence"**. The fence is rebuilt in place and keeps its shape.
 - Pick **Original fence** to go back to the barn's default fence.
 
-The choice is saved with the savegame. If you remove the mod, the game ignores the saved choice and the original fence comes back.
+The choice is saved with the savegame. Before removing the mod, set changed pastures back to **Original fence**: the savegame stores the segments of the chosen fence, and without the mod the base game loads them against the barn's original fence, which may not know those segments.
 
 ## Why the base game can't do this
 
@@ -27,6 +27,7 @@ The choice is saved with the savegame. If you remove the mod, the game ignores t
 ## Limitations
 
 - Singleplayer only.
-- If the new fence has no gate, existing gates are left as openings.
+- If the new fence has no gate, gates of an existing pasture are left as openings. A new barn built with such a fence gets a closed fence instead of its gates.
+- If any segment of the new fence cannot be built, the change is cancelled and the old fence stays.
 - Fences with long panels may leave small gaps at corners.
 - Changing the fence is free.
