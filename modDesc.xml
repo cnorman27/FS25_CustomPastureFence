@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<modDesc descVersion="104">
+    <author>cnorm</author>
+    <version>1.0.0.0</version>
+    <title>
+        <en>Custom Pasture Fence</en>
+        <de>Weidezaun anpassen</de>
+    </title>
+    <description>
+        <en><![CDATA[Change the fence type of any animal pasture (sheep, cows, pigs, horses, chickens) to any fence available in your game, including fences from other mods.
+
+When placing a new barn or pasture in construction mode, press the "Pasture fence" button to pick its fence. The preview updates right away and the barn is built with that fence.
+
+To change an existing pasture, stand inside it on foot and press the activate key ("Change pasture fence"). Pick a fence from the list, or "Original fence" to go back. The fence keeps its shape and the choice is saved with your savegame.
+
+Notes:
+- Singleplayer only.
+- If the chosen fence has no gate, existing gates are left as openings.
+- Fences with long panels may leave small gaps at corners.]]></en>
+    </description>
+
+    <multiplayer supported="false"/>
+
+    <extraSourceFiles>
+        <sourceFile filename="scripts/CustomPastureFence.lua"/>
+    </extraSourceFiles>
+
+    <l10n>
+        <text name="cpf_action_changeFence">
+            <en>Change pasture fence</en>
+            <de>Weidezaun ändern</de>
+        </text>
+        <text name="cpf_construction_fence">
+            <en>Pasture fence: %s</en>
+            <de>Weidezaun: %s</de>
+        </text>
+        <text name="cpf_dialog_title">
+            <en>Pasture fence</en>
+            <de>Weidezaun</de>
+        </text>
+        <text name="cpf_dialog_text">
+            <en>Choose the fence for %s:</en>
+            <de>Zaun für %s auswählen:</de>
+        </text>
+        <text name="cpf_option_original">
+            <en>Original fence</en>
+            <de>Originalzaun</de>
+        </text>
+        <text name="cpf_option_current">
+            <en>(current)</en>
+            <de>(aktuell)</de>
+        </text>
+        <text name="cpf_info_changed">
+            <en>Pasture fence changed to %s.</en>
+            <de>Weidezaun geändert zu %s.</de>
+        </text>
+        <text name="cpf_info_gatesRemoved">
+            <en>%d gate(s) were left as openings because this fence has no gate.</en>
+            <de>%d Tor(e) wurden als Öffnung belassen, da dieser Zaun kein Tor hat.</de>
+        </text>
+        <text name="cpf_info_segmentsFailed">
+            <en>%d fence section(s) could not be placed.</en>
+            <de>%d Zaunabschnitt(e) konnten nicht platziert werden.</de>
+        </text>
+        <text name="cpf_error_failed">
+            <en>The fence could not be changed. See the log for details.</en>
+            <de>Der Zaun konnte nicht geändert werden. Details im Log.</de>
+        </text>
+        <text name="cpf_error_busy">
+            <en>Finish editing this pasture's fence first.</en>
+            <de>Beende zuerst die Bearbeitung dieses Weidezauns.</de>
+        </text>
+    </l10n>
+</modDesc>
